@@ -10,8 +10,8 @@ export default function RegisterPage() {
   const navigate = useNavigate();
 
   const handleSubmit = async () => {
-    await api.post('/auth/register', { name, email, password, role: 'USER' });
-    navigate('/dashboard');
+    await api.post('/register', { name, email, password});
+    navigate('/login');
   };
 
   return (

@@ -16,7 +16,7 @@ export const AuthProvider = ({ children }: any) => {
     setToken(null);
   };
 
-  const user = token ? jwtDecode(token) : null;
+  const user = token ? jwtDecode<any>(token) : null;
 
   return <AuthContext.Provider value={{ token, login, logout, user }}>{children}</AuthContext.Provider>;
 };

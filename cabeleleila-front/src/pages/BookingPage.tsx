@@ -1,54 +1,84 @@
-import { useState, useEffect } from 'react';
-import { Container, TextField, Button, Typography, Box, Select, MenuItem, InputLabel, FormControl } from '@mui/material';
-import api from '../api';
+import { useState, useEffect } from "react";
+import {
+  Container,
+  TextField,
+  Button,
+  Typography,
+  Box,
+  Select,
+  MenuItem,
+  InputLabel,
+  FormControl,
+} from "@mui/material";
+import type { SelectChangeEvent } from "@mui/material";
+import api from "../api";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function BookingPage() {
   type Service = { id: number; name: string; price: number };
-  const [services, setServices] = useState<Service[]>([]);
-  const [selectedServices, setSelectedServices] = useState<Service[]>([{ id: 0, name: '', price: 0 }]);
-  const [scheduledDate, setScheduledDate] = useState('');
-  const [notes, setNotes] = useState('');
-
-  // Simulação do ID do cliente (aqui seria retirado do contexto ou autenticação)
-  const clientId = 1;  // Exemplo: ID do cliente logado, você pode pegar de um contexto ou da autenticação
-
-  // Buscar os serviços do backend
-  useEffect(() => {
-    const fetchServices = async () => {
-      const response = await api.get('/services');
-      setServices(response.data);
-    };
-    
-    fetchServices();
-  }, []);
-
-  const addService = () => {
-    setSelectedServices([...selectedServices, { id: 0, name: '', price: 0 }]);
+  type Booking = {
+    id: number;
+    scheduledDate: string;
+    status: string;
   };
 
-  const handleChange = <K extends keyof Service>(i: number, field: K, value: Service[K]) => {
-    const updated = [...selectedServices];
-    updated[i][field] = value;
-    setSelectedServices(updated);
+  const { user } = useAuth();
+  const [services, setServices] = useState<Service[]>([]);
+  const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [scheduledDate, setScheduledDate] = useState("");
+  const [notes, setNotes] = useState("");
+  const [totalAmount, setTotalAmount] = useState(0);
+  const [userBookings, setUserBookings] = useState<Booking[]>([]);
+
+  useEffect(() => {
+    const fetchServices = async () => {
+      const response = await api.get("/services");
+      setServices(response.data);
+    };
+
+    const fetchUserBookings = async () => {
+      if (!user?.id) return;
+      const response = await api.get(`/bookings/client/${user.id}`);
+      setUserBookings(response.data);
+    };
+
+    fetchServices();
+    fetchUserBookings();
+  }, [user]);
+
+  useEffect(() => {
+    if (selectedService) {
+      setTotalAmount(selectedService.price);
+    }
+  }, [selectedService]);
+
+  const handleChange = (e: SelectChangeEvent) => {
+    const selected = services.find(
+      (service) => service.id === Number(e.target.value)
+    );
+    if (selected) {
+      setSelectedService(selected);
+    }
   };
 
   const handleSubmit = async () => {
-    // Certifique-se de passar o ID do cliente corretamente
     const bookingData = {
       scheduledDate,
       notes,
-      status: 'REQUESTED',
-      client: { id: clientId }, // Passando o ID do cliente para o backend
-      services: selectedServices.map(service => ({ id: service.id, price: service.price })),
+      status: "REQUESTED",
+      client: { id: user?.id },
+      services: selectedService
+        ? [{ id: selectedService.id, price: selectedService.price }]
+        : [],
     };
 
     try {
-      const response = await api.post('/bookings', bookingData);
+      const response = await api.post("/bookings", bookingData);
       if (response.status === 200) {
-        alert('Booking submitted successfully');
+        alert("Booking submitted successfully");
       }
     } catch (error) {
-      console.error('Error submitting booking', error);
+      console.error("Error submitting booking", error);
     }
   };
 
@@ -69,28 +99,39 @@ export default function BookingPage() {
           margin="normal"
           onChange={(e) => setNotes(e.target.value)}
         />
-        
-        {/* Renderizar os campos de serviço */}
-        {selectedServices.map((service, i) => (
-          <Box key={i} sx={{ mt: 2 }}>
-            <FormControl fullWidth margin="normal">
-              <InputLabel>Service</InputLabel>
-              <Select
-                value={service.id}
-                onChange={(e) => handleChange(i, 'id', e.target.value as number)}
-              >
-                {services.map((serviceOption) => (
-                  <MenuItem key={serviceOption.id} value={serviceOption.id}>
-                    {serviceOption.name} - ${serviceOption.price}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Box>
-        ))}
-
-        <Button onClick={addService} sx={{ mt: 2 }}>Add Service</Button>
-        <Button variant="contained" onClick={handleSubmit} sx={{ mt: 2, ml: 2 }}>Submit Booking</Button>
+        <Box sx={{ mt: 2 }}>
+          <FormControl fullWidth margin="normal">
+            <InputLabel>Service</InputLabel>
+            <Select
+              value={selectedService?.id?.toString() || ""}
+              onChange={handleChange}
+            >
+              {services.map((serviceOption) => (
+                <MenuItem key={serviceOption.id} value={serviceOption.id}>
+                  {serviceOption.name} - ${serviceOption.price}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
+        <Typography variant="h6" sx={{ mt: 2 }}>
+          Total Amount: ${totalAmount.toFixed(2)}
+        </Typography>
+        <Button
+          variant="contained"
+          onClick={handleSubmit}
+          sx={{ mt: 2, ml: 2 }}
+        >
+          Submit Booking
+        </Button>
+        <Box mt={4}>
+          <Typography variant="h6">Your Bookings</Typography>
+          {userBookings.map((booking) => (
+            <Typography key={booking.id} sx={{ mt: 1 }}>
+              {booking.scheduledDate} - {booking.status}
+            </Typography>
+          ))}
+        </Box>
       </Box>
     </Container>
   );
