@@ -1,97 +1,394 @@
-import { Container, Typography, Box, Button, CircularProgress } from '@mui/material';
-import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
-import api from '../api';
+import styled from "styled-components";
+import {
+  Container,
+  Typography,
+  Box,
+  Button,
+  CircularProgress,
+  TextField,
+  MenuItem,
+  Select,
+  InputLabel,
+  FormControl,
+  Card,
+  CardContent,
+  Chip,
+  Grid,
+  Avatar,
+} from "@mui/material";
+import { useAuth } from "../contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import api from "../api";
+import dayjs from "dayjs";
+import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
+import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
+import {
+  Event,
+  Person,
+  CalendarToday,
+  Info,
+  Logout,
+} from "@mui/icons-material";
+
+dayjs.extend(isSameOrAfter);
+dayjs.extend(isSameOrBefore);
+
+const DashboardContainer = styled(Container)`
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  min-height: 100vh;
+  padding: 2rem;
+`;
+
+const HeaderBox = styled(Box)`
+  background: white;
+  padding: 1.5rem;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  margin-bottom: 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+`;
+
+const UserInfo = styled(Box)`
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+`;
+
+const FilterBox = styled(Box)`
+  background: white;
+  padding: 1.5rem;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  margin-bottom: 2rem;
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+`;
+
+const ContentBox = styled(Box)`
+  background: white;
+  padding: 2rem;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+`;
+
+const StyledCard = styled(Card)`
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  &:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+  }
+`;
+
+const PrimaryButton = styled(Button)`
+  background: linear-gradient(45deg, #3f51b5 0%, #6573c3 100%);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  text-transform: none;
+  &:hover {
+    background: linear-gradient(45deg, #6573c3 0%, #3f51b5 100%);
+  }
+`;
+
+const SecondaryButton = styled(Button)`
+  border: 2px solid #3f51b5;
+  color: #3f51b5;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  text-transform: none;
+  &:hover {
+    background: rgba(63, 81, 181, 0.08);
+  }
+`;
+
+const DetailsButton = styled(Button)`
+  color: #3f51b5;
+  font-weight: 600;
+  text-transform: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+`;
+
+const statusColors = {
+  PENDING: "warning",
+  CONFIRMED: "success",
+  CANCELLED: "error",
+  REQUESTED: "primary",
+};
 
 export default function DashboardPage() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [bookings, setBookings] = useState<any[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState(true);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [statusMap, setStatusMap] = useState<{ [key: number]: string }>({});
+
+  const fetchBookings = async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const response =
+        user.role === "ADMIN"
+          ? await api.get("/bookings")
+          : await api.get(`/bookings/client/${user.id}`);
+
+      let data = response.data.filter((b: any) => {
+        const matchesStart =
+          !startDate || dayjs(b.scheduledDate).isSameOrAfter(dayjs(startDate));
+        const matchesEnd =
+          !endDate || dayjs(b.scheduledDate).isSameOrBefore(dayjs(endDate));
+        return matchesStart && matchesEnd;
+      });
+
+      setBookings(data);
+      setStatusMap(
+        data.reduce((map: any, b: any) => ({ ...map, [b.id]: b.status }), {})
+      );
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateStatus = async (id: number) => {
+    try {
+      await api.put(`/bookings/${id}/status`, { status: statusMap[id] });
+      fetchBookings();
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   useEffect(() => {
-    const fetchBookings = async () => {
-      if (!user) return;
-
-      try {
-        if (user.role === 'ADMIN') {
-          const response = await api.get('/bookings');
-          setBookings(response.data);
-        } else if (user.role === 'USER') {
-          const response = await api.get(`/bookings/client/${user.id}`);
-          setBookings(response.data);
-        }
-      } catch (error) {
-        console.error('Error fetching bookings', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchBookings();
   }, [user]);
 
   if (loading) {
     return (
-      <Container>
-        <Box mt={4} display="flex" justifyContent="center" alignItems="center" height="100vh">
-          <CircularProgress />
+      <DashboardContainer maxWidth={false}>
+        <Box
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+          height="100vh"
+        >
+          <CircularProgress size={60} />
         </Box>
-      </Container>
+      </DashboardContainer>
     );
   }
 
   return (
-    <Container>
-      <Box mt={4}>
-        <Typography variant="h5">Welcome, {user?.sub || 'User'}</Typography>
-
-        {user?.role === 'USER' && (
-          <>
-            <Button variant="contained" sx={{ mt: 2 }} onClick={() => navigate('/book')}>
-              Book Appointment
-            </Button>
-            <Typography variant="h6" sx={{ mt: 2 }}>
-              Your Bookings:
+    <DashboardContainer maxWidth={false}>
+      <HeaderBox>
+        <UserInfo>
+          <Avatar sx={{ bgcolor: "#3f51b5" }}>
+            {user?.sub?.charAt(0).toUpperCase()}
+          </Avatar>
+          <Box>
+            <Typography variant="h6" fontWeight="bold">
+              {user?.sub || "User"}
             </Typography>
-            {bookings.length > 0 ? (
-              <Box sx={{ mt: 2 }}>
-                {bookings.map((booking) => (
-                  <Typography key={booking.id} sx={{ mb: 1 }}>
-                    {booking.scheduledDate} - {booking.status}
-                  </Typography>
-                ))}
-              </Box>
-            ) : (
-              <Typography>No bookings found</Typography>
-            )}
-          </>
-        )}
-
-        {user?.role === 'ADMIN' && (
-          <>
-            <Typography variant="h6" sx={{ mt: 2 }}>
-              All Bookings:
+            <Typography variant="body2" color="text.secondary">
+              {user?.role}
             </Typography>
-            {bookings.length > 0 ? (
-              <Box sx={{ mt: 2 }}>
-                {bookings.map((booking) => (
-                  <Typography key={booking.id} sx={{ mb: 1 }}>
-                    {booking.clientName} - {booking.scheduledDate} - {booking.status}
-                  </Typography>
-                ))}
-              </Box>
-            ) : (
-              <Typography>No bookings found</Typography>
-            )}
-          </>
-        )}
-
-        <Button color="error" sx={{ mt: 2, ml: 2 }} onClick={logout}>
+          </Box>
+        </UserInfo>
+        <SecondaryButton startIcon={<Logout />} onClick={logout}>
           Logout
-        </Button>
-      </Box>
-    </Container>
+        </SecondaryButton>
+      </HeaderBox>
+
+      <FilterBox>
+        <TextField
+          type="date"
+          label="Start Date"
+          InputLabelProps={{ shrink: true }}
+          fullWidth
+          value={startDate}
+          onChange={(e) => setStartDate(e.target.value)}
+          variant="outlined"
+        />
+        <TextField
+          type="date"
+          label="End Date"
+          InputLabelProps={{ shrink: true }}
+          fullWidth
+          value={endDate}
+          onChange={(e) => setEndDate(e.target.value)}
+          variant="outlined"
+        />
+        <PrimaryButton startIcon={<CalendarToday />} onClick={fetchBookings}>
+          Filter
+        </PrimaryButton>
+      </FilterBox>
+
+      <ContentBox>
+        {user?.role === "USER" && (
+          <>
+            <Box mb={3}>
+              <PrimaryButton
+                startIcon={<Event />}
+                onClick={() => navigate("/book")}
+              >
+                Book Appointment
+              </PrimaryButton>
+            </Box>
+
+            <Typography
+              variant="h5"
+              gutterBottom
+              fontWeight="bold"
+              color="#3f51b5"
+            >
+              Your Bookings
+            </Typography>
+
+            {bookings.length === 0 ? (
+              <Typography>No bookings found.</Typography>
+            ) : (
+              <Grid container spacing={3}>
+                {bookings.map((booking) => (
+                  <Grid item xs={12} sm={6} key={booking.id}>
+                    <StyledCard elevation={3}>
+                      <CardContent>
+                        <Box display="flex" alignItems="center" gap={1} mb={1}>
+                          <CalendarToday color="action" fontSize="small" />
+                          <Typography variant="subtitle1" fontWeight="bold">
+                            {dayjs(booking.scheduledDate).format(
+                              "DD/MM/YYYY HH:mm"
+                            )}
+                          </Typography>
+                        </Box>
+                        <Box
+                          display="flex"
+                          justifyContent="space-between"
+                          alignItems="center"
+                        >
+                          <Chip
+                            label={booking.status}
+                            color={statusColors[booking.status] || "default"}
+                            sx={{ fontWeight: "bold" }}
+                          />
+                          <DetailsButton
+                            size="small"
+                            startIcon={<Info />}
+                            onClick={() => navigate(`/bookings/${booking.id}`)}
+                          >
+                            Details
+                          </DetailsButton>
+                        </Box>
+                      </CardContent>
+                    </StyledCard>
+                  </Grid>
+                ))}
+              </Grid>
+            )}
+          </>
+        )}
+
+        {user?.role === "ADMIN" && (
+          <>
+            <Typography
+              variant="h5"
+              gutterBottom
+              fontWeight="bold"
+              color="#3f51b5"
+            >
+              All Bookings
+            </Typography>
+
+            {bookings.length === 0 ? (
+              <Typography>No bookings found.</Typography>
+            ) : (
+              <Grid container spacing={3}>
+                {bookings.map((booking) => (
+                  <Grid item xs={12} key={booking.id}>
+                    <StyledCard elevation={3}>
+                      <CardContent
+                        sx={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          alignItems: "center",
+                          gap: 2,
+                        }}
+                      >
+                        <Box sx={{ flexGrow: 1, minWidth: 200 }}>
+                          <Box
+                            display="flex"
+                            alignItems="center"
+                            gap={1}
+                            mb={1}
+                          >
+                            <Person color="action" fontSize="small" />
+                            <Typography variant="subtitle1" fontWeight="bold">
+                              {booking.clientName}
+                            </Typography>
+                          </Box>
+                          <Box display="flex" alignItems="center" gap={1}>
+                            <CalendarToday color="action" fontSize="small" />
+                            <Typography variant="body2" color="text.secondary">
+                              {dayjs(booking.scheduledDate).format(
+                                "DD/MM/YYYY HH:mm"
+                              )}
+                            </Typography>
+                          </Box>
+                        </Box>
+
+                        <FormControl size="small" sx={{ minWidth: 140 }}>
+                          <InputLabel>Status</InputLabel>
+                          <Select
+                            label="Status"
+                            value={statusMap[booking.id]}
+                            onChange={(e) =>
+                              setStatusMap({
+                                ...statusMap,
+                                [booking.id]: e.target.value,
+                              })
+                            }
+                          >
+                            {Object.entries(statusColors).map(
+                              ([status, color]) => (
+                                <MenuItem key={status} value={status}>
+                                  {status}
+                                </MenuItem>
+                              )
+                            )}
+                          </Select>
+                        </FormControl>
+
+                        <SecondaryButton
+                          onClick={() => updateStatus(booking.id)}
+                        >
+                          Update
+                        </SecondaryButton>
+
+                        <DetailsButton
+                          startIcon={<Info />}
+                          onClick={() => navigate(`/bookings/${booking.id}`)}
+                        >
+                          Details
+                        </DetailsButton>
+                      </CardContent>
+                    </StyledCard>
+                  </Grid>
+                ))}
+              </Grid>
+            )}
+          </>
+        )}
+      </ContentBox>
+    </DashboardContainer>
   );
 }
