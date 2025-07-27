@@ -3,9 +3,7 @@ import {
   Container,
   Typography,
   Box,
-  Button,
   CircularProgress,
-  TextField,
   Card,
   CardContent,
   Chip,
@@ -17,27 +15,18 @@ import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import api from "../api";
 import dayjs from "dayjs";
-import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
-import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
-import {
-  Event,
-  Person,
-  CalendarToday,
-  Info,
-  Logout,
-} from "@mui/icons-material";
-
-dayjs.extend(isSameOrAfter);
-dayjs.extend(isSameOrBefore);
+import { Person, CalendarToday, Info } from "@mui/icons-material";
 
 const DashboardContainer = styled(Container)`
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-  min-height: 100vh;
+  background: white;
   padding: 2rem;
+  @media (max-width: 600px) {
+    padding: 1rem;
+  }
 `;
 
 const HeaderBox = styled(Box)`
-  background: white;
+  background: #ede7f6;
   padding: 1.5rem;
   border-radius: 16px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
@@ -45,23 +34,20 @@ const HeaderBox = styled(Box)`
   display: flex;
   justify-content: space-between;
   align-items: center;
+  @media (max-width: 600px) {
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+  }
 `;
 
 const UserInfo = styled(Box)`
   display: flex;
   align-items: center;
   gap: 1rem;
-`;
-
-const FilterBox = styled(Box)`
-  background: white;
-  padding: 1.5rem;
-  border-radius: 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  margin-bottom: 2rem;
-  display: flex;
-  gap: 1rem;
-  align-items: center;
+  @media (max-width: 600px) {
+    justify-content: center;
+  }
 `;
 
 const ContentBox = styled(Box)`
@@ -69,6 +55,9 @@ const ContentBox = styled(Box)`
   padding: 2rem;
   border-radius: 16px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  @media (max-width: 600px) {
+    padding: 1rem;
+  }
 `;
 
 const StyledCard = styled(Card)`
@@ -76,46 +65,21 @@ const StyledCard = styled(Card)`
   transition: all 0.3s ease;
   &:hover {
     transform: translateY(-5px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 8px 20px rgba(63, 81, 181, 0.2);
   }
 `;
 
-const PrimaryButton = styled(Button)`
-  background: linear-gradient(45deg, #3f51b5 0%, #6573c3 100%);
-  color: white;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-weight: 600;
-  text-transform: none;
-  &:hover {
-    background: linear-gradient(45deg, #6573c3 0%, #3f51b5 100%);
-  }
-`;
-
-const SecondaryButton = styled(Button)`
-  border: 2px solid #3f51b5;
-  color: #3f51b5;
-  padding: 10px 20px;
-  border-radius: 8px;
-  font-weight: 600;
-  text-transform: none;
-  &:hover {
-    background: rgba(63, 81, 181, 0.08);
-  }
-`;
-
-const DetailsButton = styled(Button)`
+const DetailsButton = styled(Box)`
   color: #3f51b5;
   font-weight: 600;
   text-transform: none;
   display: flex;
   align-items: center;
   gap: 4px;
+  cursor: pointer;
 `;
 
-type BookingStatus = "PENDING" | "CONFIRMED" | "CANCELLED" | "REQUESTED";
-
-const statusColors: Record<BookingStatus, "warning" | "success" | "error" | "primary"> = {
+const statusColors = {
   PENDING: "warning",
   CONFIRMED: "success",
   CANCELLED: "error",
@@ -123,21 +87,10 @@ const statusColors: Record<BookingStatus, "warning" | "success" | "error" | "pri
 };
 
 export default function DashboardPage() {
-  interface Booking {
-    id: string;
-    scheduledDate: string;
-    status: BookingStatus;
-    clientName?: string;
-    // add other fields as needed
-  }
-
-  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [bookings, setBookings] = useState([]);
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
 
   const fetchBookings = async () => {
     if (!user) return;
@@ -148,15 +101,7 @@ export default function DashboardPage() {
           ? await api.get("/bookings")
           : await api.get(`/bookings/client/${user.id}`);
 
-      let data = response.data.filter((b: any) => {
-        const matchesStart =
-          !startDate || dayjs(b.scheduledDate).isSameOrAfter(dayjs(startDate));
-        const matchesEnd =
-          !endDate || dayjs(b.scheduledDate).isSameOrBefore(dayjs(endDate));
-        return matchesStart && matchesEnd;
-      });
-
-      setBookings(data);
+      setBookings(response.data);
     } catch (error) {
       console.error(error);
     } finally {
@@ -199,62 +144,25 @@ export default function DashboardPage() {
             </Typography>
           </Box>
         </UserInfo>
-        <SecondaryButton startIcon={<Logout />} onClick={logout}>
-          Logout
-        </SecondaryButton>
       </HeaderBox>
-
-      <FilterBox>
-        <TextField
-          type="date"
-          label="Start Date"
-          InputLabelProps={{ shrink: true }}
-          fullWidth
-          value={startDate}
-          onChange={(e) => setStartDate(e.target.value)}
-          variant="outlined"
-        />
-        <TextField
-          type="date"
-          label="End Date"
-          InputLabelProps={{ shrink: true }}
-          fullWidth
-          value={endDate}
-          onChange={(e) => setEndDate(e.target.value)}
-          variant="outlined"
-        />
-        <PrimaryButton startIcon={<CalendarToday />} onClick={fetchBookings}>
-          Filter
-        </PrimaryButton>
-      </FilterBox>
 
       <ContentBox>
         {user?.role === "USER" && (
           <>
-            <Box mb={3}>
-              <PrimaryButton
-                startIcon={<Event />}
-                onClick={() => navigate("/book")}
-              >
-                Book Appointment
-              </PrimaryButton>
-            </Box>
-
             <Typography
               variant="h5"
               gutterBottom
               fontWeight="bold"
               color="#3f51b5"
             >
-              Your Bookings
+              Seus Agendamentos
             </Typography>
-
             {bookings.length === 0 ? (
-              <Typography>No bookings found.</Typography>
+              <Typography>Nenhum agendamento encontrado.</Typography>
             ) : (
               <Grid container spacing={3}>
                 {bookings.map((booking) => (
-                  <Grid item xs={12} sm={6} key={booking.id}>
+                  <Grid item xs={12} sm={6} md={4} key={booking.id}>
                     <StyledCard elevation={3}>
                       <CardContent>
                         <Box display="flex" alignItems="center" gap={1} mb={1}>
@@ -276,11 +184,9 @@ export default function DashboardPage() {
                             sx={{ fontWeight: "bold" }}
                           />
                           <DetailsButton
-                            size="small"
-                            startIcon={<Info />}
                             onClick={() => navigate(`/bookings/${booking.id}`)}
                           >
-                            Details
+                            <Info fontSize="small" /> Detalhes
                           </DetailsButton>
                         </Box>
                       </CardContent>
@@ -300,15 +206,14 @@ export default function DashboardPage() {
               fontWeight="bold"
               color="#3f51b5"
             >
-              All Bookings
+              Todos os Agendamentos
             </Typography>
-
             {bookings.length === 0 ? (
-              <Typography>No bookings found.</Typography>
+              <Typography>Nenhum agendamento encontrado.</Typography>
             ) : (
               <Grid container spacing={3}>
                 {bookings.map((booking) => (
-                  <Grid item xs={12} key={booking.id}>
+                  <Grid item xs={12} sm={6} md={4} key={booking.id}>
                     <StyledCard elevation={3}>
                       <CardContent
                         sx={{
@@ -327,7 +232,7 @@ export default function DashboardPage() {
                           >
                             <Person color="action" fontSize="small" />
                             <Typography variant="subtitle1" fontWeight="bold">
-                              {booking.clientName}
+                              {booking.client?.name || "Sem nome"}
                             </Typography>
                           </Box>
                           <Box display="flex" alignItems="center" gap={1}>
@@ -338,23 +243,33 @@ export default function DashboardPage() {
                               )}
                             </Typography>
                           </Box>
+                          <Box
+                            display="flex"
+                            alignItems="center"
+                            gap={1}
+                            mt={1}
+                          >
+                            <Typography variant="body2" color="text.secondary">
+                              Criado por:{" "}
+                              <strong>{booking.client?.email}</strong>
+                            </Typography>
+                          </Box>
                         </Box>
 
                         <Chip
                           label={booking.status}
                           color={statusColors[booking.status] || "default"}
-                          sx={{ 
+                          sx={{
                             fontWeight: "bold",
-                            fontSize: '0.875rem',
-                            minWidth: 100
+                            fontSize: "0.875rem",
+                            minWidth: 100,
                           }}
                         />
 
                         <DetailsButton
-                          startIcon={<Info />}
                           onClick={() => navigate(`/bookings/${booking.id}`)}
                         >
-                          Details
+                          <Info fontSize="small" /> 
                         </DetailsButton>
                       </CardContent>
                     </StyledCard>

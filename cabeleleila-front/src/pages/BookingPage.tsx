@@ -28,9 +28,9 @@ import isoWeek from "dayjs/plugin/isoWeek";
 dayjs.extend(isoWeek);
 
 const BookingContainer = styled(Container)`
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-  min-height: 100vh;
-  padding: 2rem;
+  @media (max-width: 600px) {
+    padding: 1rem;
+  }
 `;
 
 const BookingCard = styled(Card)`
@@ -39,12 +39,19 @@ const BookingCard = styled(Card)`
   border-radius: 16px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
   margin-bottom: 2rem;
+  @media (max-width: 600px) {
+    padding: 1rem;
+  }
 `;
 
 const BookingTitle = styled(Typography)`
   color: #3f51b5;
   font-weight: 700 !important;
   margin-bottom: 2rem !important;
+  @media (max-width: 600px) {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+  }
 `;
 
 const PrimaryButton = styled(Button)`
@@ -55,6 +62,10 @@ const PrimaryButton = styled(Button)`
   font-weight: 600 !important;
   text-transform: none !important;
   margin-top: 1rem !important;
+  @media (max-width: 600px) {
+    width: 100%;
+    padding: 10px 20px;
+  }
 `;
 
 const BookingItem = styled(Card)`
@@ -64,9 +75,15 @@ const BookingItem = styled(Card)`
   &:hover {
     transform: translateY(-2px);
   }
+  @media (max-width: 600px) {
+    margin: 0.5rem 0;
+  }
 `;
 
-const statusColors: Record<string, "warning" | "success" | "error" | "primary"> = {
+const statusColors: Record<
+  string,
+  "warning" | "success" | "error" | "primary"
+> = {
   PENDING: "warning",
   CONFIRMED: "success",
   CANCELLED: "error",
@@ -97,6 +114,8 @@ export default function BookingPage() {
   const [userBookings, setUserBookings] = useState<Booking[]>([]);
   const [editDialog, setEditDialog] = useState(false);
   const [editBookingId, setEditBookingId] = useState<number | null>(null);
+  const [openSameWeekPopup, setOpenSameWeekPopup] = useState(false);
+  const [sameWeekMessage, setSameWeekMessage] = useState("");
 
   useEffect(() => {
     const fetchServices = async () => {
@@ -142,9 +161,14 @@ export default function BookingPage() {
           const d = dayjs(b.scheduledDate);
           return d.isoWeek() === newBookingDate.isoWeek();
         });
+
         if (sameWeek) {
-          alert("Você já tem outro agendamento nesta semana. Deseja combinar no mesmo dia?");
+          setSameWeekMessage(
+            "Você já tem outro agendamento nesta semana. Deseja combinar no mesmo dia?"
+          );
+          setOpenSameWeekPopup(true);
         }
+
         const bookingsResponse = await api.get(`/bookings/client/${user?.id}`);
         setUserBookings(bookingsResponse.data);
       }
@@ -154,9 +178,12 @@ export default function BookingPage() {
   };
 
   const openEditDialog = (booking: Booking) => {
-    const daysDiff = dayjs(booking.scheduledDate).diff(dayjs(), 'day');
+    const daysDiff = dayjs(booking.scheduledDate).diff(dayjs(), "day");
     if (daysDiff < 2) {
-      alert("Para editar esse agendamento, entre em contato com Leila: (99) 99999-9999");
+      setSameWeekMessage(
+        "Para editar esse agendamento, entre em contato com Leila: (99) 99999-9999"
+      );
+      setOpenSameWeekPopup(true);
       return;
     }
     setScheduledDate(booking.scheduledDate);
@@ -219,13 +246,17 @@ export default function BookingPage() {
           <Select
             multiple
             value={selectedServices}
-            onChange={(e) => setSelectedServices(
-              typeof e.target.value === "string"
-                ? e.target.value.split(",").map(Number)
-                : e.target.value as number[]
-            )}
+            onChange={(e) =>
+              setSelectedServices(
+                typeof e.target.value === "string"
+                  ? e.target.value.split(",").map(Number)
+                  : (e.target.value as number[])
+              )
+            }
             renderValue={(selected) =>
-              selected.map((id) => services.find((s) => s.id === id)?.name).join(", ")
+              selected
+                .map((id) => services.find((s) => s.id === id)?.name)
+                .join(", ")
             }
           >
             {services.map((s) => (
@@ -259,7 +290,11 @@ export default function BookingPage() {
           userBookings.map((booking) => (
             <BookingItem key={booking.id} elevation={3}>
               <CardContent>
-                <Box display="flex" justifyContent="space-between" alignItems="center">
+                <Box
+                  display="flex"
+                  justifyContent="space-between"
+                  alignItems="center"
+                >
                   <Typography variant="h6" fontWeight="bold">
                     {dayjs(booking.scheduledDate).format("DD/MM/YYYY HH:mm")}
                   </Typography>
@@ -269,7 +304,9 @@ export default function BookingPage() {
                       color={statusColors[booking.status] || "default"}
                       sx={{ fontWeight: "bold" }}
                     />
-                    <Button onClick={() => openEditDialog(booking)}>Editar</Button>
+                    <Button onClick={() => openEditDialog(booking)}>
+                      Editar
+                    </Button>
                   </Box>
                 </Box>
               </CardContent>
@@ -304,6 +341,19 @@ export default function BookingPage() {
         <DialogActions>
           <Button onClick={() => setEditDialog(false)}>Cancelar</Button>
           <PrimaryButton onClick={saveEdit}>Salvar</PrimaryButton>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={openSameWeekPopup}
+        onClose={() => setOpenSameWeekPopup(false)}
+      >
+        <DialogTitle>Aviso</DialogTitle>
+        <DialogContent>
+          <Typography>{sameWeekMessage}</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenSameWeekPopup(false)}>Entendi</Button>
         </DialogActions>
       </Dialog>
     </BookingContainer>

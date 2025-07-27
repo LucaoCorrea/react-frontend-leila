@@ -9,15 +9,14 @@ const LoginContainer = styled(Container)`
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  min-height: 90vh;
 `;
 
 const LoginBox = styled(Box)`
-  background: white;
+  background: #ffffff;
   padding: 2.5rem;
   border-radius: 16px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  box-shadow: 0px 30px 50px rgba(0, 0, 0, 0.1);
   text-align: center;
   width: 100%;
   max-width: 400px;
@@ -45,8 +44,19 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [error, setError] = useState("");
 
   const handleSubmit = async () => {
+    if (!email || !password) {
+      setError("Por favor, preencha todos os campos.");
+      return;
+    }
+
+    if (!/\S+@\S+\.\S+/.test(email)) {
+      setError("Email inválido.");
+      return;
+    }
+
     try {
       const res = await api.post("/auth/login", { email, password });
       const token = res.data.token;
@@ -55,6 +65,7 @@ export default function LoginPage() {
       login(token);
       navigate("/dashboard");
     } catch (error) {
+      setError("Falha ao realizar login. Verifique suas credenciais.");
       console.error("Login failed:", error);
     }
   };
@@ -82,6 +93,7 @@ export default function LoginPage() {
           variant="outlined"
           sx={{ mb: 1 }}
         />
+        {error && <Typography color="error">{error}</Typography>}
         <LoginButton fullWidth variant="contained" onClick={handleSubmit}>
           Entrar
         </LoginButton>
@@ -98,3 +110,4 @@ export default function LoginPage() {
     </LoginContainer>
   );
 }
+

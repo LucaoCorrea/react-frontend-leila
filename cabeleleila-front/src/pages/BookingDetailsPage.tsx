@@ -36,8 +36,12 @@ import { useAuth } from "../contexts/AuthContext";
 
 const DetailsContainer = styled(Container)`
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-  min-height: 100vh;
+  border-radius: 16px;
+  min-height: 50vh;
   padding: 2rem;
+  @media (max-width: 600px) {
+    padding: 1rem;
+  }
 `;
 
 const DetailsCard = styled(Card)`
@@ -47,12 +51,18 @@ const DetailsCard = styled(Card)`
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
   max-width: 800px;
   margin: 0 auto;
+  @media (max-width: 600px) {
+    padding: 1rem;
+  }
 `;
 
 const BackButton = styled(Button)`
   margin-bottom: 2rem !important;
   color: #3f51b5 !important;
   font-weight: 600 !important;
+  @media (max-width: 600px) {
+    margin-bottom: 1rem;
+  }
 `;
 
 const statusColors: {
@@ -189,7 +199,7 @@ export default function BookingDetailsPage() {
   return (
     <DetailsContainer maxWidth={false}>
       <BackButton startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)}>
-        Back
+        Voltar
       </BackButton>
 
       <DetailsCard>
@@ -200,7 +210,7 @@ export default function BookingDetailsPage() {
           mb={3}
         >
           <Typography variant="h4" fontWeight="bold" color="#3f51b5">
-            Booking Details
+            Detalhes do Agendamento
           </Typography>
           <Chip
             label={booking.status}
@@ -212,10 +222,10 @@ export default function BookingDetailsPage() {
         <Divider sx={{ my: 2 }} />
 
         {editMode ? (
-          <Grid container spacing={4}>
+          <Grid container spacing={2}>
             <Grid item xs={12}>
               <Typography variant="h6" gutterBottom fontWeight="bold">
-                Appointment Details
+                Detalhes
               </Typography>
               <TextField
                 fullWidth
@@ -253,7 +263,7 @@ export default function BookingDetailsPage() {
 
             <Grid item xs={12}>
               <Typography variant="h6" gutterBottom fontWeight="bold">
-                Services
+                Serviços
               </Typography>
               <List dense>
                 {allServices.map((service) => (
@@ -295,28 +305,22 @@ export default function BookingDetailsPage() {
             </Grid>
           </Grid>
         ) : (
-          <Grid container spacing={4}>
+          <Grid container spacing={2}>
             <Grid item xs={12} md={6}>
               <Typography variant="h6" gutterBottom fontWeight="bold">
-                Client Information
+                Informação do Cliente
               </Typography>
               <List>
                 <ListItem>
                   <ListItemText
                     primary="Name"
-                    secondary={booking.clientName || "N/A"}
+                    secondary={user?.name || "N/A"}
                   />
                 </ListItem>
                 <ListItem>
                   <ListItemText
                     primary="Email"
-                    secondary={booking.clientEmail || "N/A"}
-                  />
-                </ListItem>
-                <ListItem>
-                  <ListItemText
-                    primary="Phone"
-                    secondary={booking.clientPhone || "N/A"}
+                    secondary={user?.email || "N/A"}
                   />
                 </ListItem>
               </List>
@@ -324,7 +328,7 @@ export default function BookingDetailsPage() {
 
             <Grid item xs={12} md={6}>
               <Typography variant="h6" gutterBottom fontWeight="bold">
-                Appointment Details
+                Detalhes
               </Typography>
               <List>
                 <ListItem>
@@ -333,12 +337,6 @@ export default function BookingDetailsPage() {
                     secondary={dayjs(booking.scheduledDate).format(
                       "DD/MM/YYYY HH:mm"
                     )}
-                  />
-                </ListItem>
-                <ListItem>
-                  <ListItemText
-                    primary="Duration"
-                    secondary={`${booking.duration || 60} minutes`}
                   />
                 </ListItem>
                 <ListItem>
@@ -353,7 +351,7 @@ export default function BookingDetailsPage() {
             {booking.services?.length > 0 && (
               <Grid item xs={12}>
                 <Typography variant="h6" gutterBottom fontWeight="bold">
-                  Services
+                  Serviços
                 </Typography>
                 <List>
                   {booking.services.map((service: any) => (
@@ -371,7 +369,7 @@ export default function BookingDetailsPage() {
             {booking.notes && (
               <Grid item xs={12}>
                 <Typography variant="h6" gutterBottom fontWeight="bold">
-                  Notes
+                  Notas
                 </Typography>
                 <Typography variant="body1" sx={{ whiteSpace: "pre-line" }}>
                   {booking.notes}
@@ -386,14 +384,14 @@ export default function BookingDetailsPage() {
             {editMode ? (
               <>
                 <Button variant="outlined" onClick={() => setEditMode(false)}>
-                  Cancel
+                  Cancelar
                 </Button>
                 <Button
                   variant="contained"
                   color="primary"
                   onClick={handleUpdateBooking}
                 >
-                  Save Changes
+                  Salvar Alterações
                 </Button>
               </>
             ) : (
@@ -404,7 +402,7 @@ export default function BookingDetailsPage() {
                   startIcon={<DeleteIcon />}
                   onClick={() => setDeleteConfirm(true)}
                 >
-                  Delete
+                  Deletar
                 </Button>
                 <Button
                   variant="contained"
@@ -412,7 +410,7 @@ export default function BookingDetailsPage() {
                   startIcon={<EditIcon />}
                   onClick={() => setEditMode(true)}
                 >
-                  Edit
+                  Editar
                 </Button>
               </>
             )}
@@ -421,14 +419,14 @@ export default function BookingDetailsPage() {
       </DetailsCard>
 
       <Dialog open={deleteConfirm} onClose={() => setDeleteConfirm(false)}>
-        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogTitle>Confirmar Exclusão</DialogTitle>
         <DialogContent>
-          <Typography>Are you sure you want to delete this booking?</Typography>
+          <Typography>Tem Certeza que Deseja Deletar?</Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteConfirm(false)}>Cancel</Button>
+          <Button onClick={() => setDeleteConfirm(false)}>Cancelar</Button>
           <Button color="error" onClick={handleDeleteBooking}>
-            Delete
+            Deletar
           </Button>
         </DialogActions>
       </Dialog>
