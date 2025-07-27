@@ -6,10 +6,6 @@ import {
   Button,
   CircularProgress,
   TextField,
-  MenuItem,
-  Select,
-  InputLabel,
-  FormControl,
   Card,
   CardContent,
   Chip,
@@ -117,7 +113,9 @@ const DetailsButton = styled(Button)`
   gap: 4px;
 `;
 
-const statusColors = {
+type BookingStatus = "PENDING" | "CONFIRMED" | "CANCELLED" | "REQUESTED";
+
+const statusColors: Record<BookingStatus, "warning" | "success" | "error" | "primary"> = {
   PENDING: "warning",
   CONFIRMED: "success",
   CANCELLED: "error",
@@ -125,13 +123,21 @@ const statusColors = {
 };
 
 export default function DashboardPage() {
-  const { user, logout } = useAuth();
+  interface Booking {
+    id: string;
+    scheduledDate: string;
+    status: BookingStatus;
+    clientName?: string;
+    // add other fields as needed
+  }
+
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const navigate = useNavigate();
-  const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [statusMap, setStatusMap] = useState<{ [key: number]: string }>({});
+
+  const { user, logout } = useAuth();
 
   const fetchBookings = async () => {
     if (!user) return;
@@ -151,22 +157,10 @@ export default function DashboardPage() {
       });
 
       setBookings(data);
-      setStatusMap(
-        data.reduce((map: any, b: any) => ({ ...map, [b.id]: b.status }), {})
-      );
     } catch (error) {
       console.error(error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const updateStatus = async (id: number) => {
-    try {
-      await api.put(`/bookings/${id}/status`, { status: statusMap[id] });
-      fetchBookings();
-    } catch (err) {
-      console.error(err);
     }
   };
 
@@ -346,33 +340,15 @@ export default function DashboardPage() {
                           </Box>
                         </Box>
 
-                        <FormControl size="small" sx={{ minWidth: 140 }}>
-                          <InputLabel>Status</InputLabel>
-                          <Select
-                            label="Status"
-                            value={statusMap[booking.id]}
-                            onChange={(e) =>
-                              setStatusMap({
-                                ...statusMap,
-                                [booking.id]: e.target.value,
-                              })
-                            }
-                          >
-                            {Object.entries(statusColors).map(
-                              ([status, color]) => (
-                                <MenuItem key={status} value={status}>
-                                  {status}
-                                </MenuItem>
-                              )
-                            )}
-                          </Select>
-                        </FormControl>
-
-                        <SecondaryButton
-                          onClick={() => updateStatus(booking.id)}
-                        >
-                          Update
-                        </SecondaryButton>
+                        <Chip
+                          label={booking.status}
+                          color={statusColors[booking.status] || "default"}
+                          sx={{ 
+                            fontWeight: "bold",
+                            fontSize: '0.875rem',
+                            minWidth: 100
+                          }}
+                        />
 
                         <DetailsButton
                           startIcon={<Info />}

@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import styled from 'styled-components';
-import { Container, TextField, Button, Typography, Box } from '@mui/material';
-import api from '../api';
-import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useState } from "react";
+import styled from "styled-components";
+import { Container, TextField, Button, Typography, Box } from "@mui/material";
+import api from "../api";
+import { useAuth } from "../contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 const LoginContainer = styled(Container)`
   display: flex;
@@ -41,18 +41,21 @@ const LoginButton = styled(Button)`
 `;
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async () => {
     try {
-      const res = await api.post('/auth/login', { email, password });
-      login(res.data.token);
-      navigate('/dashboard');
+      const res = await api.post("/auth/login", { email, password });
+      const token = res.data.token;
+
+      localStorage.setItem("token", token);
+      login(token);
+      navigate("/dashboard");
     } catch (error) {
-      console.error('Login failed:', error);
+      console.error("Login failed:", error);
     }
   };
 
@@ -60,21 +63,21 @@ export default function LoginPage() {
     <LoginContainer maxWidth={false}>
       <LoginBox>
         <LoginTitle variant="h4">Bem-vindo de volta</LoginTitle>
-        <TextField 
-          fullWidth 
-          label="Email" 
-          margin="normal" 
-          value={email} 
+        <TextField
+          fullWidth
+          label="Email"
+          margin="normal"
+          value={email}
           onChange={(e) => setEmail(e.target.value)}
           variant="outlined"
           sx={{ mb: 2 }}
         />
-        <TextField 
-          fullWidth 
-          label="Senha" 
-          type="password" 
-          margin="normal" 
-          value={password} 
+        <TextField
+          fullWidth
+          label="Senha"
+          type="password"
+          margin="normal"
+          value={password}
           onChange={(e) => setPassword(e.target.value)}
           variant="outlined"
           sx={{ mb: 1 }}
@@ -82,8 +85,14 @@ export default function LoginPage() {
         <LoginButton fullWidth variant="contained" onClick={handleSubmit}>
           Entrar
         </LoginButton>
-        <Typography variant="body2" sx={{ mt: 2, color: 'text.secondary' }}>
-          Ainda não tem uma conta? <a href="/register" style={{ color: '#3f51b5', textDecoration: 'none' }}>Registre-se</a>
+        <Typography variant="body2" sx={{ mt: 2, color: "text.secondary" }}>
+          Ainda não tem uma conta?{" "}
+          <a
+            href="/register"
+            style={{ color: "#3f51b5", textDecoration: "none" }}
+          >
+            Registre-se
+          </a>
         </Typography>
       </LoginBox>
     </LoginContainer>

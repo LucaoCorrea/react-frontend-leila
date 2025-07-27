@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import styled from 'styled-components';
+import styled from "styled-components";
 import {
   Container,
   TextField,
@@ -12,12 +12,20 @@ import {
   FormControl,
   Card,
   CardContent,
-  Chip
+  Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Checkbox,
+  ListItemText,
 } from "@mui/material";
-import type { SelectChangeEvent } from "@mui/material";
 import api from "../api";
 import { useAuth } from "../contexts/AuthContext";
 import dayjs from "dayjs";
+import isoWeek from "dayjs/plugin/isoWeek";
+
+dayjs.extend(isoWeek);
 
 const BookingContainer = styled(Container)`
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
@@ -58,30 +66,37 @@ const BookingItem = styled(Card)`
   }
 `;
 
-const statusColors: {
-  [key: string]: "default" | "primary" | "success" | "error" | "warning";
-} = {
+const statusColors: Record<string, "warning" | "success" | "error" | "primary"> = {
   PENDING: "warning",
   CONFIRMED: "success",
   CANCELLED: "error",
   REQUESTED: "primary",
 };
 
-export default function BookingPage() {
-  type Service = { id: number; name: string; price: number };
-  type Booking = {
-    id: number;
-    scheduledDate: string;
-    status: string;
-  };
+type Service = {
+  id: number;
+  name: string;
+  price: number;
+};
 
+type Booking = {
+  id: number;
+  scheduledDate: string;
+  notes: string;
+  status: string;
+  services: Service[];
+};
+
+export default function BookingPage() {
   const { user } = useAuth();
   const [services, setServices] = useState<Service[]>([]);
-  const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [selectedServices, setSelectedServices] = useState<number[]>([]);
   const [scheduledDate, setScheduledDate] = useState("");
   const [notes, setNotes] = useState("");
   const [totalAmount, setTotalAmount] = useState(0);
   const [userBookings, setUserBookings] = useState<Booking[]>([]);
+  const [editDialog, setEditDialog] = useState(false);
+  const [editBookingId, setEditBookingId] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchServices = async () => {
@@ -100,19 +115,12 @@ export default function BookingPage() {
   }, [user]);
 
   useEffect(() => {
-    if (selectedService) {
-      setTotalAmount(selectedService.price);
-    }
-  }, [selectedService]);
-
-  const handleChange = (e: SelectChangeEvent) => {
-    const selected = services.find(
-      (service) => service.id === Number(e.target.value)
-    );
-    if (selected) {
-      setSelectedService(selected);
-    }
-  };
+    const total = selectedServices.reduce((sum, id) => {
+      const s = services.find((s) => s.id === id);
+      return sum + (s?.price || 0);
+    }, 0);
+    setTotalAmount(total);
+  }, [selectedServices, services]);
 
   const handleSubmit = async () => {
     const bookingData = {
@@ -120,81 +128,133 @@ export default function BookingPage() {
       notes,
       status: "REQUESTED",
       client: { id: user?.id },
-      services: selectedService
-        ? [{ id: selectedService.id, price: selectedService.price }]
-        : [],
+      services: selectedServices.map((id) => {
+        const s = services.find((s) => s.id === id);
+        return { id: s?.id, price: s?.price };
+      }),
     };
 
     try {
       const response = await api.post("/bookings", bookingData);
       if (response.status === 200) {
-        alert("Booking submitted successfully");
+        const newBookingDate = dayjs(scheduledDate);
+        const sameWeek = userBookings.find((b) => {
+          const d = dayjs(b.scheduledDate);
+          return d.isoWeek() === newBookingDate.isoWeek();
+        });
+        if (sameWeek) {
+          alert("Você já tem outro agendamento nesta semana. Deseja combinar no mesmo dia?");
+        }
         const bookingsResponse = await api.get(`/bookings/client/${user?.id}`);
         setUserBookings(bookingsResponse.data);
       }
     } catch (error) {
-      console.error("Error submitting booking", error);
+      console.error("Erro ao enviar agendamento", error);
+    }
+  };
+
+  const openEditDialog = (booking: Booking) => {
+    const daysDiff = dayjs(booking.scheduledDate).diff(dayjs(), 'day');
+    if (daysDiff < 2) {
+      alert("Para editar esse agendamento, entre em contato com Leila: (99) 99999-9999");
+      return;
+    }
+    setScheduledDate(booking.scheduledDate);
+    setNotes(booking.notes);
+    setSelectedServices(booking.services.map((s) => s.id));
+    setEditBookingId(booking.id);
+    setEditDialog(true);
+  };
+
+  const saveEdit = async () => {
+    const bookingData = {
+      scheduledDate,
+      notes,
+      client: { id: user?.id },
+      services: selectedServices.map((id) => {
+        const s = services.find((s) => s.id === id);
+        return { id: s?.id, price: s?.price };
+      }),
+    };
+
+    try {
+      await api.put(`/bookings/${editBookingId}`, bookingData);
+      const bookingsResponse = await api.get(`/bookings/client/${user?.id}`);
+      setUserBookings(bookingsResponse.data);
+      setEditDialog(false);
+    } catch (err) {
+      console.error(err);
     }
   };
 
   return (
     <BookingContainer maxWidth="md">
       <BookingCard>
-        <BookingTitle variant="h4">New Booking</BookingTitle>
-        
+        <BookingTitle variant="h4">Novo Agendamento</BookingTitle>
+
         <TextField
           fullWidth
-          label="Date & Time"
+          label="Data e Hora"
           type="datetime-local"
           margin="normal"
+          value={scheduledDate}
           onChange={(e) => setScheduledDate(e.target.value)}
           InputLabelProps={{ shrink: true }}
           variant="outlined"
         />
-        
+
         <TextField
           fullWidth
-          label="Notes"
+          label="Observações"
           margin="normal"
+          value={notes}
           onChange={(e) => setNotes(e.target.value)}
           variant="outlined"
           multiline
           rows={3}
         />
-        
+
         <FormControl fullWidth margin="normal">
-          <InputLabel>Service</InputLabel>
+          <InputLabel>Serviços</InputLabel>
           <Select
-            value={selectedService?.id?.toString() || ""}
-            onChange={handleChange}
-            variant="outlined"
+            multiple
+            value={selectedServices}
+            onChange={(e) => setSelectedServices(
+              typeof e.target.value === "string"
+                ? e.target.value.split(",").map(Number)
+                : e.target.value as number[]
+            )}
+            renderValue={(selected) =>
+              selected.map((id) => services.find((s) => s.id === id)?.name).join(", ")
+            }
           >
-            {services.map((serviceOption) => (
-              <MenuItem key={serviceOption.id} value={serviceOption.id}>
-                {serviceOption.name} - ${serviceOption.price.toFixed(2)}
+            {services.map((s) => (
+              <MenuItem key={s.id} value={s.id}>
+                <Checkbox checked={selectedServices.includes(s.id)} />
+                <ListItemText primary={`${s.name} - R$ ${s.price}`} />
               </MenuItem>
             ))}
           </Select>
         </FormControl>
-        
-        <Typography variant="h6" sx={{ mt: 2, fontWeight: 'bold' }}>
-          Total Amount: ${totalAmount.toFixed(2)}
+
+        <Typography variant="h6" sx={{ mt: 2, fontWeight: "bold" }}>
+          Total: R$ {totalAmount.toFixed(2)}
         </Typography>
-        
+
         <PrimaryButton
           variant="contained"
           onClick={handleSubmit}
-          disabled={!selectedService || !scheduledDate}
+          disabled={selectedServices.length === 0 || !scheduledDate}
         >
-          Submit Booking
+          Confirmar
         </PrimaryButton>
       </BookingCard>
 
       <BookingCard>
-        <BookingTitle variant="h4">Your Bookings</BookingTitle>
-        
+        <BookingTitle variant="h4">Seus Agendamentos</BookingTitle>
+
         {userBookings.length === 0 ? (
-          <Typography>No bookings found.</Typography>
+          <Typography>Nenhum agendamento encontrado.</Typography>
         ) : (
           userBookings.map((booking) => (
             <BookingItem key={booking.id} elevation={3}>
@@ -203,17 +263,49 @@ export default function BookingPage() {
                   <Typography variant="h6" fontWeight="bold">
                     {dayjs(booking.scheduledDate).format("DD/MM/YYYY HH:mm")}
                   </Typography>
-                  <Chip
-                    label={booking.status}
-                    color={statusColors[booking.status] || "default"}
-                    sx={{ fontWeight: 'bold' }}
-                  />
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <Chip
+                      label={booking.status}
+                      color={statusColors[booking.status] || "default"}
+                      sx={{ fontWeight: "bold" }}
+                    />
+                    <Button onClick={() => openEditDialog(booking)}>Editar</Button>
+                  </Box>
                 </Box>
               </CardContent>
             </BookingItem>
           ))
         )}
       </BookingCard>
+
+      <Dialog open={editDialog} onClose={() => setEditDialog(false)}>
+        <DialogTitle>Editar Agendamento</DialogTitle>
+        <DialogContent>
+          <TextField
+            fullWidth
+            type="datetime-local"
+            margin="normal"
+            value={scheduledDate}
+            onChange={(e) => setScheduledDate(e.target.value)}
+            variant="outlined"
+            InputLabelProps={{ shrink: true }}
+          />
+          <TextField
+            fullWidth
+            label="Observações"
+            margin="normal"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            variant="outlined"
+            multiline
+            rows={3}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditDialog(false)}>Cancelar</Button>
+          <PrimaryButton onClick={saveEdit}>Salvar</PrimaryButton>
+        </DialogActions>
+      </Dialog>
     </BookingContainer>
   );
 }
